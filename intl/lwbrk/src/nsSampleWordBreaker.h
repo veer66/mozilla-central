@@ -36,6 +36,8 @@ public:
 
 protected:
   uint8_t  GetClass(PRUnichar aChar);
+  const PRUnichar* bufferedText; 
+  uint8_t* endOfWord;
 };
 
 #endif  /* nsSampleWordBreaker_h__ */

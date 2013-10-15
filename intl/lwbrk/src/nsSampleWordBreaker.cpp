@@ -5,9 +5,13 @@
 
 
 #include "nsSampleWordBreaker.h"
+#include "nsString.h"
+#include <CoreFoundation/CoreFoundation.h>
 
 nsSampleWordBreaker::nsSampleWordBreaker()
 {
+  bufferedText = nullptr;
+  endOfWord = nullptr;
 }
 nsSampleWordBreaker::~nsSampleWordBreaker()
 {
@@ -25,9 +29,30 @@ bool nsSampleWordBreaker::BreakInBetween(
   if(!aText1 || !aText2 || (0 == aTextLen1) || (0 == aTextLen2))
     return false;
 
-  return (this->GetClass(aText1[aTextLen1-1]) != this->GetClass(aText2[0]));
+  bool is_break = (this->GetClass(aText1[aTextLen1-1]) != this->GetClass(aText2[0]));
+  uint32_t bufferedTextLen;
+  if(!is_break) {
+    if(bufferedText != aText1) {
+      bufferedText = aText1;
+      bufferedTextLen = aTextLen1 + aTextLen2;
+      if(nullptr != endOfWord)
+        delete endOfWord;
+      endOfWord = new uint8_t[bufferedTextLen];
+      memset(endOfWord, false, bufferedTextLen * sizeof(uint8_t));
+      CFStringRef string = CFStringCreateWithCharacters(kCFAllocatorDefault, bufferedText, bufferedTextLen);
+      CFStringTokenizerRef tokref = CFStringTokenizerCreate(kCFAllocatorDefault, 
+          string, CFRangeMake(0, bufferedTextLen), kCFStringTokenizerUnitWordBoundary, CFLocaleCopyCurrent());
+      while(kCFStringTokenizerTokenNone != CFStringTokenizerAdvanceToNextToken(tokref)) {
+        CFRange wordRange = CFStringTokenizerGetCurrentTokenRange(tokref);
+        endOfWord[wordRange.location + wordRange.length] = true;
+      }
+      CFRelease(string);
+      CFRelease(tokref);
+    }
+    is_break = endOfWord[aTextLen1];
+  }
+  return is_break;
 }
-
 
 #define IS_ASCII(c)            (0 == ( 0xFF80 & (c)))
 #define ASCII_IS_ALPHA(c)         ((( 'a' <= (c)) && ((c) <= 'z')) || (( 'A' <= (c)) && ((c) <= 'Z')))
